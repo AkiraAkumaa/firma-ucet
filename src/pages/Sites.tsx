@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useT } from '../i18n/I18nContext'
 import { useHoursEntries, useOutputEntries, useSites } from '../db/hooks'
@@ -6,6 +6,7 @@ import { hoursEntryAmount } from '../domain/hours/calc'
 import { outputEntryAmount } from '../domain/output/calc'
 import { formatMoney } from '../shared/money'
 import { Card } from '../shared/ui/Card'
+import { TextField } from '../shared/ui/TextField'
 import { ROUTES } from '../app/routes'
 
 export function Sites() {
@@ -13,6 +14,7 @@ export function Sites() {
   const sites = useSites()
   const hoursEntries = useHoursEntries()
   const outputEntries = useOutputEntries()
+  const [search, setSearch] = useState('')
 
   const laborCostBySite = useMemo(() => {
     const map = new Map<number, number>()
@@ -21,14 +23,31 @@ export function Sites() {
     return map
   }, [hoursEntries, outputEntries])
 
+  const filteredSites = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    if (!query) return sites
+    return sites.filter((s) => s.name.toLowerCase().includes(query) || s.address.toLowerCase().includes(query))
+  }, [sites, search])
+
   return (
     <div>
       <h1 className="text-2xl font-semibold">{t.sites.title}</h1>
 
+      {sites.length > 0 && (
+        <TextField
+          label={t.common.search}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="mt-4 max-w-sm"
+        />
+      )}
+
       <Card className="mt-4 p-0">
         <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-          {sites.length === 0 && <li className="p-4 text-sm text-gray-500">{t.sites.noSites}</li>}
-          {sites.map((site) => (
+          {filteredSites.length === 0 && (
+            <li className="p-4 text-sm text-gray-500">{sites.length === 0 ? t.sites.noSites : t.common.noData}</li>
+          )}
+          {filteredSites.map((site) => (
             <li key={site.id}>
               <Link
                 to={ROUTES.siteDetail(site.id!)}

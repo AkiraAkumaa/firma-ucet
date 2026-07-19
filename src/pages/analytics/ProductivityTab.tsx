@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
 import { useT } from '../../i18n/I18nContext'
-import { useBrigades, useDrawingRecords, usePeople, useWorkHourEntries } from '../../db/hooks'
-import { calculatePersonProductivity } from '../../domain/analytics/personProductivity'
-import { calculateBrigadeCoefficient } from '../../domain/analytics/productivity'
+import { useBrigadeMemberships, useBrigades, useDrawingRecords, usePeople, useWorkHourEntries } from '../../db/hooks'
+import { calculateBrigadeProductivity, calculatePersonProductivity } from '../../domain/analytics/personProductivity'
+import { calculateBrigadeCoefficient, brigadeIdForPersonOnDate } from '../../domain/analytics/productivity'
 import { Card } from '../../shared/ui/Card'
-import type { WorkCategory } from '../../domain/analytics/types'
+import type { WorkCategory, WorkHourEntry } from '../../domain/analytics/types'
 
 const CATEGORIES: WorkCategory[] = ['armovani', 'monolit']
 
@@ -14,6 +14,16 @@ export function ProductivityTab() {
   const brigades = useBrigades()
   const entries = useWorkHourEntries()
   const drawings = useDrawingRecords()
+  const memberships = useBrigadeMemberships()
+
+  const brigadeIdForEntry = useMemo(() => {
+    const personBrigadeId = new Map(people.map((p) => [p.id!, p.brigadeId]))
+    return (entry: WorkHourEntry) => {
+      const fallback = personBrigadeId.get(entry.personId)
+      if (fallback == null) return null
+      return brigadeIdForPersonOnDate(entry.personId, entry.date, memberships, fallback)
+    }
+  }, [people, memberships])
 
   const categoryLabel = (c: WorkCategory) => (c === 'armovani' ? t.analytics.categoryArmovani : t.analytics.categoryMonolit)
   const unitLabel = (c: WorkCategory) => (c === 'armovani' ? t.analytics.kgPerHour : t.analytics.m3PerHour)
@@ -40,30 +50,27 @@ export function ProductivityTab() {
   const brigadeRows = useMemo(() => {
     const rows: { brigadeId: number; name: string; category: WorkCategory; ratePerHour: number; coefficient: number }[] = []
     for (const category of CATEGORIES) {
-      const perBrigade = new Map<number, { weightedRate: number; hours: number }>()
-      for (const person of people) {
-        const result = calculatePersonProductivity(person.id!, category, entries, drawings)
-        if (result.totalHours <= 0 || result.ratePerHour == null) continue
-        const bucket = perBrigade.get(person.brigadeId) ?? { weightedRate: 0, hours: 0 }
-        bucket.weightedRate += result.ratePerHour * result.totalHours
-        bucket.hours += result.totalHours
-        perBrigade.set(person.brigadeId, bucket)
-      }
-      const brigadeRates = [...perBrigade.entries()].map(([brigadeId, b]) => ({ brigadeId, rate: b.weightedRate / b.hours, hours: b.hours }))
-      const totalHours = brigadeRates.reduce((sum, b) => sum + b.hours, 0)
-      const companyAverage = totalHours > 0 ? brigadeRates.reduce((sum, b) => sum + b.rate * b.hours, 0) / totalHours : 0
-      for (const b of brigadeRates) {
+      const brigadeIds = new Set(brigades.map((b) => b.id!))
+      const brigadeResults = [...brigadeIds]
+        .map((brigadeId) => calculateBrigadeProductivity(brigadeId, category, entries, drawings, brigadeIdForEntry))
+        .filter((r) => r.totalHours > 0 && r.ratePerHour != null)
+
+      const totalHours = brigadeResults.reduce((sum, r) => sum + r.totalHours, 0)
+      const companyAverage =
+        totalHours > 0 ? brigadeResults.reduce((sum, r) => sum + r.ratePerHour! * r.totalHours, 0) / totalHours : 0
+
+      for (const r of brigadeResults) {
         rows.push({
-          brigadeId: b.brigadeId,
-          name: brigades.find((br) => br.id === b.brigadeId)?.name ?? '',
+          brigadeId: r.brigadeId,
+          name: brigades.find((br) => br.id === r.brigadeId)?.name ?? '',
           category,
-          ratePerHour: b.rate,
-          coefficient: calculateBrigadeCoefficient(b.rate, companyAverage),
+          ratePerHour: r.ratePerHour!,
+          coefficient: calculateBrigadeCoefficient(r.ratePerHour!, companyAverage),
         })
       }
     }
     return rows
-  }, [people, brigades, entries, drawings])
+  }, [brigades, entries, drawings, brigadeIdForEntry])
 
   return (
     <div>

@@ -16,6 +16,7 @@ import type { SalaryEntry } from '../domain/salary/types'
 import type { InsuranceOverride } from '../domain/people/types'
 import type { BrigadeMembership, DrawingRecord, WorkHourEntry } from '../domain/analytics/types'
 import { getActiveTenantId } from '../tenant/activeTenant'
+import { recordBackupNow } from './lastBackupTracker'
 
 const BACKUP_VERSION = 1
 
@@ -92,6 +93,7 @@ export async function exportBackup(): Promise<void> {
   link.download = `ucet-firm-backup-${new Date().toISOString().slice(0, 10)}.json`
   link.click()
   URL.revokeObjectURL(url)
+  recordBackupNow(tenantId)
 }
 
 interface BackupData {

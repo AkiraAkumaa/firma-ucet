@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { useT } from '../i18n/I18nContext'
 import { useBrigades, useExpenses, useHoursEntries, useOutputEntries, usePayments, usePeople, useSalaryEntries, useSites } from '../db/hooks'
 import { useAllPeopleDebts, useDebtTrend } from '../domain/debt/useDebt'
@@ -14,6 +15,9 @@ import { StatTile } from '../shared/ui/StatTile'
 import { DebtTrendChart } from '../shared/charts/DebtTrendChart'
 import { MagnitudeBarChart } from '../shared/charts/MagnitudeBarChart'
 import { EmptyChartState } from '../shared/charts/EmptyChartState'
+import { ROUTES } from '../app/routes'
+
+const OVERDUE_THRESHOLD_DAYS = 14
 
 export function Overview() {
   const t = useT()
@@ -42,6 +46,11 @@ export function Overview() {
     return best
   }, [debts])
   const longestDelayName = longestDelay ? (people.find((p) => p.id === longestDelay.personId)?.name ?? '') : ''
+
+  const overdueCount = useMemo(
+    () => [...debts.values()].filter((d) => d.oldestUnpaidMonth != null && d.delayDays > OVERDUE_THRESHOLD_DAYS).length,
+    [debts],
+  )
 
   const activeSitesCount = sites.filter((s) => s.status === 'active').length
 
@@ -97,6 +106,16 @@ export function Overview() {
   return (
     <div>
       <h1 className="text-2xl font-semibold">{t.overview.title}</h1>
+
+      {overdueCount > 0 && (
+        <Link
+          to={ROUTES.people}
+          className="mt-4 flex items-center justify-between gap-3 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
+        >
+          <span className="font-medium">⚠ {t.overview.overdueBanner(overdueCount, OVERDUE_THRESHOLD_DAYS)}</span>
+          <span className="underline">{t.overview.overdueBannerLink}</span>
+        </Link>
+      )}
 
       <div className="mt-4">
         <StatTile

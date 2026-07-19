@@ -22,6 +22,7 @@ import { formatMoney } from '../shared/money'
 import { Card } from '../shared/ui/Card'
 import { Button } from '../shared/ui/Button'
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog'
+import { BrigadeHistorySection } from './person/BrigadeHistorySection'
 import { ROUTES } from '../app/routes'
 import { db } from '../db/db'
 import { exportPersonToExcel } from '../export/exportExcel'
@@ -281,6 +282,8 @@ export function PersonDetail() {
             </Card>
           )}
         </div>
+
+      <BrigadeHistorySection personId={personId} />
 
       <h2 className="mt-6 text-lg font-semibold">{t.people.detail.history}</h2>
       <Card className="mt-2 p-0">

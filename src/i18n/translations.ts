@@ -31,6 +31,7 @@ export interface Dictionary {
     howCalculated: string
     exactDate: string
     monthOnly: string
+    present: string
   }
   theme: {
     light: string
@@ -72,6 +73,8 @@ export interface Dictionary {
     totalProfit: string
     laborCostThisMonthHint: string
     totalProfitHint: string
+    overdueBanner: (count: number, days: number) => string
+    overdueBannerLink: string
   }
   summary: {
     title: string
@@ -134,6 +137,9 @@ export interface Dictionary {
     total: string
     renameHint: string
     deleteWarning: (memberCount: number) => string
+    membershipHistory: string
+    addMembership: string
+    membershipHint: string
   }
   sites: {
     title: string
@@ -253,6 +259,9 @@ export interface Dictionary {
     cleanupOrphansConfirmBody: string
     cleanupOrphansNone: string
     cleanupOrphansResult: (count: number) => string
+    lastBackup: (days: number) => string
+    lastBackupToday: string
+    neverBackedUp: string
   }
   print: {
     generatedOn: string
@@ -379,6 +388,7 @@ const uk: Dictionary = {
     howCalculated: 'Як це рахується?',
     exactDate: 'Точна дата',
     monthOnly: 'Тільки місяць',
+    present: 'дотепер',
   },
   theme: {
     light: 'Світла',
@@ -422,6 +432,9 @@ const uk: Dictionary = {
       'Сума нарахованого за Годинами (Години × ставка) і Виробітком (Кількість × ціна за одиницю) по всіх людях та об’єктах — тільки записи з датою в поточному місяці.',
     totalProfitHint:
       'Сума прибутку по всіх об’єктах: Дохід (оплати замовника + виконано по Плану × ціна для замовника) мінус Вартість праці, Матеріали та Інші витрати.',
+    overdueBanner: (count, days) =>
+      `Увага: ${count} ${pluralUk(count, 'людина', 'людини', 'людей')} прострочили оплату понад ${days} ${pluralUk(days, 'день', 'дні', 'днів')}`,
+    overdueBannerLink: 'Переглянути список',
   },
   summary: {
     title: 'Зведення',
@@ -488,6 +501,10 @@ const uk: Dictionary = {
       n > 0
         ? `Разом з бригадою буде видалено ${n} ${pluralUk(n, 'людину', 'людини', 'людей')} з неї та всю їхню історію (години, виробіток, зарплати, витрати, виплати). Цю дію не можна скасувати.`
         : 'Цю дію не можна скасувати.',
+    membershipHistory: 'Історія бригад',
+    addMembership: 'Додати перехід',
+    membershipHint:
+      'Коли людина переходить в іншу бригаду, додай запис з датою — це дозволяє точно рахувати продуктивність бригад у Аналітиці за той період, коли людина реально там працювала.',
   },
   sites: {
     title: 'Об’єкти',
@@ -609,6 +626,9 @@ const uk: Dictionary = {
       'Буде видалено всі записи (години, виробіток, зарплата, витрати, виплати тощо), які посилаються на вже видалених людей/об’єкти/бригади. Цю дію не можна скасувати.',
     cleanupOrphansNone: 'Застарілих записів не знайдено',
     cleanupOrphansResult: (count) => `Видалено записів: ${count}`,
+    lastBackup: (days) => `Останній бекап: ${days} ${pluralUk(days, 'день', 'дні', 'днів')} тому`,
+    lastBackupToday: 'Останній бекап: сьогодні',
+    neverBackedUp: 'Резервну копію ще не робили — варто зробити зараз',
   },
   print: {
     generatedOn: 'Згенеровано',
@@ -738,6 +758,7 @@ const cs: Dictionary = {
     howCalculated: 'Jak se to počítá?',
     exactDate: 'Přesné datum',
     monthOnly: 'Jen měsíc',
+    present: 'dosud',
   },
   theme: {
     light: 'Světlý',
@@ -781,6 +802,9 @@ const cs: Dictionary = {
       'Součet nárokovaného z Hodin (Hodiny × sazba) a Výrobku (Množství × cena za jednotku) za všechny lidi a stavby — jen záznamy s datem v tomto měsíci.',
     totalProfitHint:
       'Součet zisku všech staveb: Příjem (platby zákazníka + provedeno podle Plánu × cena pro zákazníka) minus Náklady na práci, Materiál a Ostatní výdaje.',
+    overdueBanner: (count, days) =>
+      `Pozor: ${count} ${pluralCs(count, 'osoba má', 'osoby mají', 'osob má')} zpoždění platby přes ${days} ${pluralCs(days, 'den', 'dny', 'dní')}`,
+    overdueBannerLink: 'Zobrazit seznam',
   },
   summary: {
     title: 'Souhrn',
@@ -847,6 +871,10 @@ const cs: Dictionary = {
       n > 0
         ? `Spolu s partou bude smazáno ${n} ${pluralCs(n, 'osoba', 'osoby', 'osob')} z ní a veškerá jejich historie (hodiny, výrobek, mzdy, výdaje, výplaty). Tuto akci nelze vrátit zpět.`
         : 'Tuto akci nelze vrátit zpět.',
+    membershipHistory: 'Historie party',
+    addMembership: 'Přidat přechod',
+    membershipHint:
+      'Když osoba přejde do jiné party, přidej záznam s datem — to umožní přesně počítat produktivitu party v Analytice za období, kdy tam osoba skutečně pracovala.',
   },
   sites: {
     title: 'Stavby',
@@ -968,6 +996,9 @@ const cs: Dictionary = {
       'Budou smazány všechny záznamy (hodiny, výrobek, mzda, výdaje, výplaty atd.), které odkazují na už smazané osoby/stavby/brigády. Tuto akci nelze vzít zpět.',
     cleanupOrphansNone: 'Žádné zastaralé záznamy nebyly nalezeny',
     cleanupOrphansResult: (count) => `Smazáno záznamů: ${count}`,
+    lastBackup: (days) => `Poslední záloha: před ${days} ${pluralCs(days, 'dnem', 'dny', 'dny')}`,
+    lastBackupToday: 'Poslední záloha: dnes',
+    neverBackedUp: 'Záloha ještě nebyla vytvořena — stojí za to udělat ji teď',
   },
   print: {
     generatedOn: 'Vygenerováno',

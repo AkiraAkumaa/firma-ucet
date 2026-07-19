@@ -1,9 +1,11 @@
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useT } from '../i18n/I18nContext'
 import { useBrigades, usePeople } from '../db/hooks'
 import { useAllPeopleDebts } from '../domain/debt/useDebt'
 import { formatMoney } from '../shared/money'
 import { Card } from '../shared/ui/Card'
+import { TextField } from '../shared/ui/TextField'
 import { ROUTES } from '../app/routes'
 
 export function People() {
@@ -11,6 +13,7 @@ export function People() {
   const people = usePeople()
   const brigades = useBrigades()
   const debts = useAllPeopleDebts()
+  const [search, setSearch] = useState('')
 
   const brigadeName = (id: number) => brigades.find((b) => b.id === id)?.name ?? ''
 
@@ -20,14 +23,31 @@ export function People() {
     return debtB - debtA
   })
 
+  const filtered = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    if (!query) return sorted
+    return sorted.filter((p) => p.name.toLowerCase().includes(query) || brigadeName(p.brigadeId).toLowerCase().includes(query))
+  }, [sorted, search, brigades])
+
   return (
     <div>
       <h1 className="text-2xl font-semibold">{t.people.title}</h1>
 
+      {people.length > 0 && (
+        <TextField
+          label={t.common.search}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="mt-4 max-w-sm"
+        />
+      )}
+
       <Card className="mt-4 p-0">
         <ul className="divide-y divide-gray-100 dark:divide-gray-800">
-          {sorted.length === 0 && <li className="p-4 text-sm text-gray-500">{t.people.noPeople}</li>}
-          {sorted.map((person) => {
+          {filtered.length === 0 && (
+            <li className="p-4 text-sm text-gray-500">{people.length === 0 ? t.people.noPeople : t.common.noData}</li>
+          )}
+          {filtered.map((person) => {
             const debt = debts.get(person.id!)?.totalDebt ?? 0
             return (
               <li key={person.id}>

@@ -1,4 +1,5 @@
 import { daysBetween } from '../debt/dateUtils'
+import { addDaysIso } from '../../shared/date'
 
 export interface PausePeriod {
   /** ISO yyyy-mm-dd */
@@ -18,20 +19,6 @@ export interface JobTimeline {
   /** totalCalendarDays − workedDaysCount v rámci [startDate, endDate]. */
   pauseDaysCount: number
   pausePeriods: PausePeriod[]
-}
-
-function pad(n: number): string {
-  return String(n).padStart(2, '0')
-}
-
-function toIso(date: Date): string {
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
-
-function addDays(date: string, n: number): string {
-  const d = new Date(date)
-  d.setDate(d.getDate() + n)
-  return toIso(d)
 }
 
 const EMPTY_TIMELINE: JobTimeline = {
@@ -77,11 +64,11 @@ export function calculateJobTimeline(workedDates: string[], options: JobTimeline
     if (!workedInRange.has(cursor)) {
       if (pauseStart == null) pauseStart = cursor
     } else if (pauseStart != null) {
-      const to = addDays(cursor, -1)
+      const to = addDaysIso(cursor, -1)
       pausePeriods.push({ from: pauseStart, to, days: daysBetween(new Date(pauseStart), new Date(to)) + 1 })
       pauseStart = null
     }
-    cursor = addDays(cursor, 1)
+    cursor = addDaysIso(cursor, 1)
   }
   if (pauseStart != null) {
     pausePeriods.push({ from: pauseStart, to: endDate, days: daysBetween(new Date(pauseStart), new Date(endDate)) + 1 })

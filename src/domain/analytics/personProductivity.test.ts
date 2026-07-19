@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { calculateDrawingActualHours, calculatePersonProductivity } from './personProductivity'
+import { calculateDrawingActualHours, calculatePersonProductivity, calculateBrigadeProductivity } from './personProductivity'
 import type { DrawingRecord, WorkHourEntry } from './types'
 
-function hourEntry(personId: number, hours: number, drawingRecordId?: number, workCategory: 'armovani' | 'monolit' = 'armovani'): WorkHourEntry {
-  return { tenantId: 1, date: '2026-05-01', personId, siteId: 1, hours, workCategory, drawingRecordId }
+function hourEntry(
+  personId: number,
+  hours: number,
+  drawingRecordId?: number,
+  workCategory: 'armovani' | 'monolit' = 'armovani',
+  date = '2026-05-01',
+): WorkHourEntry {
+  return { tenantId: 1, date, personId, siteId: 1, hours, workCategory, drawingRecordId }
 }
 
 function rebarDrawing(id: number, massKg: number): DrawingRecord {
@@ -48,5 +54,26 @@ describe('calculatePersonProductivity', () => {
     const result = calculatePersonProductivity(1, 'armovani', monolithEntries, [rebarDrawing(1, 500)])
     expect(result.totalHours).toBe(0)
     expect(result.ratePerHour).toBeNull()
+  })
+})
+
+describe('calculateBrigadeProductivity', () => {
+  it('attributes each entry to whichever brigade the resolver says for that entry, not a single static brigade', () => {
+    // person 1 was in brigade 10 before 2026-06-01, then moved to brigade 20 — same person, two different drawings.
+    const drawingEarly = rebarDrawing(1, 1000)
+    const drawingLate = rebarDrawing(2, 2000)
+    const entries = [
+      hourEntry(1, 50, 1, 'armovani', '2026-05-01'), // brigade 10
+      hourEntry(1, 50, 2, 'armovani', '2026-06-15'), // brigade 20
+    ]
+    const brigadeIdForEntry = (e: WorkHourEntry) => (e.date < '2026-06-01' ? 10 : 20)
+
+    const brigade10 = calculateBrigadeProductivity(10, 'armovani', entries, [drawingEarly, drawingLate], brigadeIdForEntry)
+    const brigade20 = calculateBrigadeProductivity(20, 'armovani', entries, [drawingEarly, drawingLate], brigadeIdForEntry)
+
+    expect(brigade10.totalHours).toBe(50)
+    expect(brigade10.ratePerHour).toBeCloseTo(20, 5) // 1000kg / 50h
+    expect(brigade20.totalHours).toBe(50)
+    expect(brigade20.ratePerHour).toBeCloseTo(40, 5) // 2000kg / 50h
   })
 })
