@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm -v)",
+      "PowerShell(node -v)",
+      "PowerShell(npm -v)",
+      "PowerShell(winget install -e --id OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements)",
+      "Bash(npm audit *)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(chromium-cli --help)",
+      "Bash(npx --yes playwright --version)",
+      "PowerShell(Get-Process -Name node -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 5173 -ErrorAction SilentlyContinue)",
+      "Bash(git -C \"e:/koding/ucet firm\" mv src/pages/entry/MaterialCostForm.tsx src/pages/company/MaterialCostForm.tsx)",
+      "Bash(rm -f \"e:/koding/ucet firm/verify-company.mjs\")"
+    ],
+    "additionalDirectories": [
+      "e:\\koding\\ucet firm"
+    ]
+  }
+}
