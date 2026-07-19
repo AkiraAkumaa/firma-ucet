@@ -1,23 +1,33 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useT } from '../i18n/I18nContext'
 import { useBrigades, useExpenses, useHoursEntries, useOutputEntries, usePayments, usePeople, useSalaryEntries, useSites } from '../db/hooks'
 import { useAllPeopleDebts, useDebtTrend } from '../domain/debt/useDebt'
 import { useCompanyProfitability } from '../domain/profitability/useProfitability'
 import { calculatePeriodTotals } from '../domain/debt/periodTotals'
-import { monthOf } from '../domain/debt/dateUtils'
 import { hoursEntryAmount } from '../domain/hours/calc'
 import { outputEntryAmount } from '../domain/output/calc'
-import { inRange, yearRange } from '../domain/reports/period'
+import { inRange, periodRange, stepPeriod, type PeriodValue } from '../domain/reports/period'
 import { formatMoney } from '../shared/money'
-import { todayIso } from '../shared/date'
-import { StatTile } from '../shared/ui/StatTile'
+import { StatTile, type StatDelta } from '../shared/ui/StatTile'
+import { PeriodSwitcher } from '../shared/ui/PeriodSwitcher'
+import { Card } from '../shared/ui/Card'
 import { DebtTrendChart } from '../shared/charts/DebtTrendChart'
 import { MagnitudeBarChart } from '../shared/charts/MagnitudeBarChart'
 import { EmptyChartState } from '../shared/charts/EmptyChartState'
 import { ROUTES } from '../app/routes'
 
 const OVERDUE_THRESHOLD_DAYS = 14
+
+function currentMonthValue(): PeriodValue {
+  const now = new Date()
+  return { type: 'month', year: now.getFullYear(), value: now.getMonth() + 1 }
+}
+
+function delta(current: number, previous: number, label: string): StatDelta | undefined {
+  if (previous === 0) return undefined
+  return { percent: ((current - previous) / Math.abs(previous)) * 100, label }
+}
 
 export function Overview() {
   const t = useT()
@@ -52,28 +62,40 @@ export function Overview() {
     [debts],
   )
 
-  const activeSitesCount = sites.filter((s) => s.status === 'active').length
+  const [period, setPeriod] = useState<PeriodValue>(currentMonthValue())
+  const range = periodRange(period.type, period.year, period.value)
+  const previousPeriod = stepPeriod(period, -1)
+  const previousRange = periodRange(previousPeriod.type, previousPeriod.year, previousPeriod.value)
 
-  const currentMonth = monthOf(todayIso())
-  const laborCostThisMonth = useMemo(() => {
-    const hours = hoursEntries.filter((e) => monthOf(e.date) === currentMonth).reduce((s, e) => s + hoursEntryAmount(e), 0)
-    const output = outputEntries
-      .filter((e) => monthOf(e.date) === currentMonth)
-      .reduce((s, e) => s + outputEntryAmount(e), 0)
-    return hours + output
-  }, [hoursEntries, outputEntries, currentMonth])
-
-  const currentYear = new Date().getFullYear()
-  const thisYearTotals = useMemo(() => {
-    const { start, end } = yearRange(currentYear)
-    return calculatePeriodTotals({
-      hoursEntries: hoursEntries.filter((e) => inRange(e.date, start, end)),
-      outputEntries: outputEntries.filter((e) => inRange(e.date, start, end)),
-      salaryEntries: salaryEntries.filter((e) => inRange(e.date, start, end)),
-      expenses: [],
-      payments: payments.filter((p) => inRange(p.date, start, end)),
-    })
-  }, [hoursEntries, outputEntries, salaryEntries, payments, currentYear])
+  const periodStats = useMemo(() => {
+    function statsFor(r: { start: string; end: string }) {
+      const hoursIn = hoursEntries.filter((e) => inRange(e.date, r.start, r.end))
+      const outputIn = outputEntries.filter((e) => inRange(e.date, r.start, r.end))
+      const salaryIn = salaryEntries.filter((e) => inRange(e.date, r.start, r.end))
+      const paymentsIn = payments.filter((p) => inRange(p.date, r.start, r.end))
+      const totals = calculatePeriodTotals({
+        hoursEntries: hoursIn,
+        outputEntries: outputIn,
+        salaryEntries: salaryIn,
+        expenses: [],
+        payments: paymentsIn,
+      })
+      const laborCost =
+        hoursIn.reduce((s, e) => s + hoursEntryAmount(e), 0) + outputIn.reduce((s, e) => s + outputEntryAmount(e), 0)
+      const siteIds = new Set<number>([...hoursIn.map((e) => e.siteId), ...outputIn.map((e) => e.siteId)])
+      const siteBreakdown = sites
+        .filter((s) => siteIds.has(s.id!))
+        .map((s) => {
+          const cost =
+            hoursIn.filter((e) => e.siteId === s.id).reduce((sum, e) => sum + hoursEntryAmount(e), 0) +
+            outputIn.filter((e) => e.siteId === s.id).reduce((sum, e) => sum + outputEntryAmount(e), 0)
+          return { siteId: s.id!, name: s.name, cost }
+        })
+        .sort((a, b) => b.cost - a.cost)
+      return { laborCost, accrued: totals.accrued, paid: totals.paid, activeSitesCount: siteIds.size, siteBreakdown }
+    }
+    return { current: statsFor(range), previous: statsFor(previousRange) }
+  }, [hoursEntries, outputEntries, salaryEntries, payments, sites, range, previousRange])
 
   const expensesByBrigadeData = useMemo(() => {
     return brigades
@@ -131,14 +153,6 @@ export function Overview() {
           label={t.overview.longestDelay}
           value={longestDelay ? `${longestDelayName} · ${t.overview.delayDays(longestDelay.days)}` : t.overview.noDelay}
         />
-        <StatTile label={t.overview.activeSites} value={String(activeSitesCount)} />
-        <StatTile
-          label={t.overview.laborCostThisMonth}
-          value={formatMoney(laborCostThisMonth)}
-          hint={t.overview.laborCostThisMonthHint}
-        />
-        <StatTile label={t.overview.accruedThisYear(currentYear)} value={formatMoney(thisYearTotals.accrued)} />
-        <StatTile label={t.overview.paidThisYear(currentYear)} value={formatMoney(thisYearTotals.paid)} />
         {hasProfitabilityData && (
           <StatTile
             label={t.overview.totalProfit}
@@ -148,6 +162,49 @@ export function Overview() {
           />
         )}
       </div>
+
+      <div className="mt-6">
+        <PeriodSwitcher value={period} onChange={setPeriod} />
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatTile
+          label={t.overview.laborCostPeriod}
+          value={formatMoney(periodStats.current.laborCost)}
+          mono
+          hint={t.overview.laborCostThisMonthHint}
+          delta={delta(periodStats.current.laborCost, periodStats.previous.laborCost, t.common.vsPreviousPeriod(period.type))}
+        />
+        <StatTile
+          label={t.overview.accruedPeriod}
+          value={formatMoney(periodStats.current.accrued)}
+          mono
+          delta={delta(periodStats.current.accrued, periodStats.previous.accrued, t.common.vsPreviousPeriod(period.type))}
+        />
+        <StatTile
+          label={t.overview.paidPeriod}
+          value={formatMoney(periodStats.current.paid)}
+          mono
+          delta={delta(periodStats.current.paid, periodStats.previous.paid, t.common.vsPreviousPeriod(period.type))}
+        />
+        <StatTile label={t.overview.activeSites} value={String(periodStats.current.activeSitesCount)} mono />
+      </div>
+
+      {periodStats.current.siteBreakdown.length > 0 && (
+        <Card className="mt-3">
+          <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t.overview.siteBreakdown}</h2>
+          <ul className="mt-2 divide-y divide-gray-100 text-sm dark:divide-gray-800">
+            {periodStats.current.siteBreakdown.map((row) => (
+              <li key={row.siteId} className="flex justify-between py-2">
+                <Link to={ROUTES.siteDetail(row.siteId)} className="hover:underline">
+                  {row.name}
+                </Link>
+                <span className="tabular-nums">{formatMoney(row.cost)}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <div className="mt-6">
         <h2 className="text-lg font-semibold">{t.overview.debtOverTime}</h2>

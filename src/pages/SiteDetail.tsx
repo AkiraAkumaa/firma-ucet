@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useT } from '../i18n/I18nContext'
 import {
@@ -15,12 +15,25 @@ import { hoursEntryAmount } from '../domain/hours/calc'
 import { outputEntryAmount } from '../domain/output/calc'
 import { useSiteMonthlyBreakdown, useSitePlan, useSiteProfitability } from '../domain/profitability/useProfitability'
 import { calculateJobTimeline } from '../domain/analytics/timeline'
+import { inRange, periodRange, stepPeriod, type PeriodValue } from '../domain/reports/period'
 import { formatMoney } from '../shared/money'
 import { todayIso } from '../shared/date'
 import { Card } from '../shared/ui/Card'
 import { Button } from '../shared/ui/Button'
+import { StatTile, type StatDelta } from '../shared/ui/StatTile'
+import { PeriodSwitcher } from '../shared/ui/PeriodSwitcher'
 import { ROUTES } from '../app/routes'
 import { exportSiteToExcel } from '../export/exportExcel'
+
+function currentMonthValue(): PeriodValue {
+  const now = new Date()
+  return { type: 'month', year: now.getFullYear(), value: now.getMonth() + 1 }
+}
+
+function delta(current: number, previous: number, label: string): StatDelta | undefined {
+  if (previous === 0) return undefined
+  return { percent: ((current - previous) / Math.abs(previous)) * 100, label }
+}
 
 export function SiteDetail() {
   const t = useT()
@@ -92,6 +105,29 @@ export function SiteDetail() {
       })
   }, [drawingRecords, workHourEntries, siteId])
 
+  const [period, setPeriod] = useState<PeriodValue>(currentMonthValue())
+  const range = periodRange(period.type, period.year, period.value)
+  const previousPeriod = stepPeriod(period, -1)
+  const previousRange = periodRange(previousPeriod.type, previousPeriod.year, previousPeriod.value)
+
+  const periodStats = useMemo(() => {
+    function statsFor(r: { start: string; end: string }) {
+      const hoursForSite = hoursEntries.filter((e) => e.siteId === siteId && inRange(e.date, r.start, r.end))
+      const outputForSite = outputEntries.filter((e) => e.siteId === siteId && inRange(e.date, r.start, r.end))
+      const laborCost =
+        hoursForSite.reduce((sum, e) => sum + hoursEntryAmount(e), 0) +
+        outputForSite.reduce((sum, e) => sum + outputEntryAmount(e), 0)
+      const peopleSet = new Set<number>([...hoursForSite.map((e) => e.personId), ...outputForSite.map((e) => e.personId)])
+      const brigadeSet = new Set<number>()
+      for (const personId of peopleSet) {
+        const brigadeId = people.find((p) => p.id === personId)?.brigadeId
+        if (brigadeId != null) brigadeSet.add(brigadeId)
+      }
+      return { laborCost, peopleCount: peopleSet.size, brigadeCount: brigadeSet.size }
+    }
+    return { current: statsFor(range), previous: statsFor(previousRange) }
+  }, [hoursEntries, outputEntries, siteId, people, range, previousRange])
+
   if (!site) {
     return <p className="text-sm text-gray-500">{t.common.noData}</p>
   }
@@ -122,9 +158,24 @@ export function SiteDetail() {
         </div>
       </div>
 
+      <div className="mt-4">
+        <PeriodSwitcher value={period} onChange={setPeriod} />
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <StatTile
+          label={t.sites.laborCost}
+          value={formatMoney(periodStats.current.laborCost)}
+          mono
+          delta={delta(periodStats.current.laborCost, periodStats.previous.laborCost, t.common.vsPreviousPeriod(period.type))}
+        />
+        <StatTile label={t.sites.activePeople} value={String(periodStats.current.peopleCount)} mono />
+        <StatTile label={t.sites.activeBrigades} value={String(periodStats.current.brigadeCount)} mono />
+      </div>
+
       <Card className="mt-4">
-        <p className="text-sm text-gray-500">{t.sites.laborCost}</p>
-        <p className="mt-1 text-3xl font-bold tabular-nums">{formatMoney(total)}</p>
+        <p className="text-sm text-gray-500">{t.sites.allTimeLaborCost}</p>
+        <p className="mt-1 text-2xl font-bold tabular-nums">{formatMoney(total)}</p>
       </Card>
 
       <div className="mt-4">

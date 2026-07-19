@@ -77,6 +77,10 @@ export interface Dictionary {
     totalProfitHint: string
     overdueBanner: (count: number, days: number) => string
     overdueBannerLink: string
+    laborCostPeriod: string
+    accruedPeriod: string
+    paidPeriod: string
+    siteBreakdown: string
   }
   summary: {
     title: string
@@ -161,6 +165,9 @@ export interface Dictionary {
     planVsActual: string
     monthlyBreakdown: string
     bulkChangeStatus: string
+    activePeople: string
+    activeBrigades: string
+    allTimeLaborCost: string
   }
   workTypes: {
     title: string
@@ -440,6 +447,10 @@ const uk: Dictionary = {
     overdueBanner: (count, days) =>
       `Увага: ${count} ${pluralUk(count, 'людина', 'людини', 'людей')} прострочили оплату понад ${days} ${pluralUk(days, 'день', 'дні', 'днів')}`,
     overdueBannerLink: 'Переглянути список',
+    laborCostPeriod: 'Вартість праці',
+    accruedPeriod: 'Нараховано',
+    paidPeriod: 'Виплачено',
+    siteBreakdown: 'Хто де працював',
   },
   summary: {
     title: 'Зведення',
@@ -529,6 +540,9 @@ const uk: Dictionary = {
     planVsActual: 'План і факт',
     monthlyBreakdown: 'Статистика по місяцях',
     bulkChangeStatus: 'Змінити статус',
+    activePeople: 'Активних людей',
+    activeBrigades: 'Активних бригад',
+    allTimeLaborCost: 'Вартість праці (весь час)',
   },
   workTypes: {
     title: 'Види робіт',
@@ -813,6 +827,10 @@ const cs: Dictionary = {
     overdueBanner: (count, days) =>
       `Pozor: ${count} ${pluralCs(count, 'osoba má', 'osoby mají', 'osob má')} zpoždění platby přes ${days} ${pluralCs(days, 'den', 'dny', 'dní')}`,
     overdueBannerLink: 'Zobrazit seznam',
+    laborCostPeriod: 'Náklady na práci',
+    accruedPeriod: 'Nárokováno',
+    paidPeriod: 'Vyplaceno',
+    siteBreakdown: 'Kdo kde pracoval',
   },
   summary: {
     title: 'Souhrn',
@@ -902,6 +920,9 @@ const cs: Dictionary = {
     planVsActual: 'Plán a skutečnost',
     monthlyBreakdown: 'Statistika po měsících',
     bulkChangeStatus: 'Změnit stav',
+    activePeople: 'Aktivních osob',
+    activeBrigades: 'Aktivních part',
+    allTimeLaborCost: 'Náklady na práci (celkem)',
   },
   workTypes: {
     title: 'Druhy práce',

@@ -18,10 +18,13 @@ import { usePersonDebt } from '../domain/debt/useDebt'
 import { hoursEntryAmount } from '../domain/hours/calc'
 import { outputEntryAmount } from '../domain/output/calc'
 import { groupWorkHoursByMonth, summarizeWorkHours } from '../domain/analytics/summary'
+import { inRange, periodRange, stepPeriod, type PeriodValue } from '../domain/reports/period'
 import { formatMoney } from '../shared/money'
 import { Card } from '../shared/ui/Card'
 import { Button } from '../shared/ui/Button'
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog'
+import { StatTile, type StatDelta } from '../shared/ui/StatTile'
+import { PeriodSwitcher } from '../shared/ui/PeriodSwitcher'
 import { BrigadeHistorySection } from './person/BrigadeHistorySection'
 import { ROUTES } from '../app/routes'
 import { db } from '../db/db'
@@ -53,6 +56,16 @@ function viewAttachment(blob: Blob) {
   setTimeout(() => URL.revokeObjectURL(url), 60_000)
 }
 
+function currentMonthValue(): PeriodValue {
+  const now = new Date()
+  return { type: 'month', year: now.getFullYear(), value: now.getMonth() + 1 }
+}
+
+function delta(current: number, previous: number, label: string): StatDelta | undefined {
+  if (previous === 0) return undefined
+  return { percent: ((current - previous) / Math.abs(previous)) * 100, label }
+}
+
 export function PersonDetail() {
   const t = useT()
   const { id } = useParams()
@@ -72,8 +85,40 @@ export function PersonDetail() {
   const salaryEntries = useSalaryEntries()
   const workHourEntries = useWorkHourEntries()
 
+  const [period, setPeriod] = useState<PeriodValue>(currentMonthValue)
+
   const person = people.find((p) => p.id === personId)
   const debt = usePersonDebt(personId)
+
+  const range = useMemo(() => periodRange(period.type, period.year, period.value), [period])
+  const previousRange = useMemo(() => {
+    const previous = stepPeriod(period, -1)
+    return periodRange(previous.type, previous.year, previous.value)
+  }, [period])
+
+  const periodStats = useMemo(() => {
+    const withinRange = (date: string, r: { start: string; end: string }) => inRange(date, r.start, r.end)
+    const compute = (r: { start: string; end: string }) => {
+      const hoursInPeriod = hoursEntries.filter((e) => e.personId === personId && withinRange(e.date, r))
+      const outputInPeriod = outputEntries.filter((e) => e.personId === personId && withinRange(e.date, r))
+      const paymentsInPeriod = payments.filter((p) => p.personId === personId && withinRange(p.date, r))
+      const rawHours = hoursInPeriod.reduce((sum, e) => sum + e.hours, 0)
+      const accrued = hoursInPeriod.reduce((sum, e) => sum + hoursEntryAmount(e), 0) + outputInPeriod.reduce((sum, e) => sum + outputEntryAmount(e), 0)
+      const paid = paymentsInPeriod.reduce((sum, p) => sum + p.amount, 0)
+      const siteIds = new Set([...hoursInPeriod.map((e) => e.siteId), ...outputInPeriod.map((e) => e.siteId)])
+      const siteBreakdown = [...siteIds]
+        .map((siteId) => {
+          const cost =
+            hoursInPeriod.filter((e) => e.siteId === siteId).reduce((sum, e) => sum + hoursEntryAmount(e), 0) +
+            outputInPeriod.filter((e) => e.siteId === siteId).reduce((sum, e) => sum + outputEntryAmount(e), 0)
+          const hours = hoursInPeriod.filter((e) => e.siteId === siteId).reduce((sum, e) => sum + e.hours, 0)
+          return { siteId, name: sites.find((s) => s.id === siteId)?.name ?? '', hours, cost }
+        })
+        .sort((a, b) => b.cost - a.cost)
+      return { rawHours, accrued, paid, sitesCount: siteIds.size, siteBreakdown }
+    }
+    return { current: compute(range), previous: compute(previousRange) }
+  }, [hoursEntries, outputEntries, payments, personId, sites, range, previousRange])
 
   const personWorkHours = useMemo(() => workHourEntries.filter((e) => e.personId === personId), [workHourEntries, personId])
   const workHoursTotals = useMemo(() => summarizeWorkHours(personWorkHours), [personWorkHours])
@@ -195,6 +240,43 @@ export function PersonDetail() {
           )}
         </Card>
       </div>
+
+      <PeriodSwitcher value={period} onChange={setPeriod} className="mt-6" />
+
+      <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile
+          label={t.entry.hours}
+          value={String(periodStats.current.rawHours)}
+          mono
+          delta={delta(periodStats.current.rawHours, periodStats.previous.rawHours, t.common.vsPreviousPeriod(period.type))}
+        />
+        <StatTile
+          label={t.people.detail.accrued}
+          value={formatMoney(periodStats.current.accrued)}
+          mono
+          delta={delta(periodStats.current.accrued, periodStats.previous.accrued, t.common.vsPreviousPeriod(period.type))}
+        />
+        <StatTile label={t.people.detail.paid} value={formatMoney(periodStats.current.paid)} mono />
+        <StatTile label={t.overview.activeSites} value={String(periodStats.current.sitesCount)} mono />
+      </div>
+
+      {periodStats.current.siteBreakdown.length > 0 && (
+        <>
+          <h2 className="mt-6 text-lg font-semibold">{t.sites.title}</h2>
+          <Card className="mt-2 p-0">
+            <ul className="divide-y divide-gray-100 dark:divide-gray-800">
+              {periodStats.current.siteBreakdown.map((row) => (
+                <li key={row.siteId} className="flex items-center justify-between gap-3 p-4 text-sm">
+                  <span className="font-medium">{row.name}</span>
+                  <span className="tabular-nums text-gray-500">
+                    {row.hours} {t.common.hoursShort} · {formatMoney(row.cost)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </>
+      )}
 
       <h2 className="mt-6 text-lg font-semibold">{t.people.detail.monthlyBreakdown}</h2>
       <Card className="mt-2 overflow-x-auto p-0">
