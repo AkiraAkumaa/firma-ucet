@@ -37,12 +37,17 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-gray-800 dark:bg-gray-950/90 md:px-6">
-        <span className="text-base font-semibold">{t.common.appName}</span>
-        <div className="flex items-center gap-2">
-          <TenantSwitcher />
-          <LanguageSwitcher />
-          <ThemeToggle />
+      <header className="sticky top-0 z-10 border-t-2 border-brand-600 bg-white/90 backdrop-blur dark:border-brand-400 dark:bg-gray-950/90">
+        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800 md:px-6">
+          <span className="flex items-center gap-2 text-base font-semibold">
+            <span className="inline-block h-2.5 w-2.5 rounded-sm bg-brand-600 dark:bg-brand-400" />
+            {t.common.appName}
+          </span>
+          <div className="flex items-center gap-2">
+            <TenantSwitcher />
+            <LanguageSwitcher />
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
@@ -57,7 +62,7 @@ export function AppLayout() {
                   className={({ isActive }) =>
                     `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${
                       isActive
-                        ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
+                        ? 'bg-brand-700 text-white dark:bg-brand-600'
                         : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'
                     }`
                   }
@@ -83,7 +88,7 @@ export function AppLayout() {
             end={item.end}
             className={({ isActive }) =>
               `flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${
-                isActive ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'
+                isActive ? 'text-brand-700 dark:text-brand-300' : 'text-gray-400 dark:text-gray-500'
               }`
             }
           >

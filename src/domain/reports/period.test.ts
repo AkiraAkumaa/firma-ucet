@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { monthRange, periodRange, quarterRange, yearRange } from './period'
+import { monthRange, periodRange, quarterRange, stepPeriod, yearRange } from './period'
 
 describe('monthRange', () => {
   it('covers the full month including its last day', () => {
@@ -44,5 +44,32 @@ describe('periodRange', () => {
     expect(periodRange('month', 2026, 5)).toEqual(monthRange(2026, 5))
     expect(periodRange('quarter', 2026, 3)).toEqual(quarterRange(2026, 3))
     expect(periodRange('year', 2026, 1)).toEqual(yearRange(2026))
+  })
+})
+
+describe('stepPeriod', () => {
+  it('steps a month forward within the same year', () => {
+    expect(stepPeriod({ type: 'month', year: 2026, value: 5 }, 1)).toEqual({ type: 'month', year: 2026, value: 6 })
+  })
+
+  it('rolls a month backward over the year boundary', () => {
+    expect(stepPeriod({ type: 'month', year: 2026, value: 1 }, -1)).toEqual({ type: 'month', year: 2025, value: 12 })
+  })
+
+  it('rolls a month forward over the year boundary', () => {
+    expect(stepPeriod({ type: 'month', year: 2026, value: 12 }, 1)).toEqual({ type: 'month', year: 2027, value: 1 })
+  })
+
+  it('rolls a quarter backward over the year boundary', () => {
+    expect(stepPeriod({ type: 'quarter', year: 2026, value: 1 }, -1)).toEqual({ type: 'quarter', year: 2025, value: 4 })
+  })
+
+  it('rolls a quarter forward over the year boundary', () => {
+    expect(stepPeriod({ type: 'quarter', year: 2026, value: 4 }, 1)).toEqual({ type: 'quarter', year: 2027, value: 1 })
+  })
+
+  it('steps a year directly', () => {
+    expect(stepPeriod({ type: 'year', year: 2026, value: 1 }, 1)).toEqual({ type: 'year', year: 2027, value: 1 })
+    expect(stepPeriod({ type: 'year', year: 2026, value: 1 }, -1)).toEqual({ type: 'year', year: 2025, value: 1 })
   })
 })

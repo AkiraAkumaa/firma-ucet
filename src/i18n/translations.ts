@@ -32,6 +32,8 @@ export interface Dictionary {
     exactDate: string
     monthOnly: string
     present: string
+    vsPreviousPeriod: (type: 'month' | 'quarter' | 'year') => string
+    hoursShort: string
   }
   theme: {
     light: string
@@ -389,6 +391,9 @@ const uk: Dictionary = {
     exactDate: 'Точна дата',
     monthOnly: 'Тільки місяць',
     present: 'дотепер',
+    vsPreviousPeriod: (type) =>
+      `vs ${type === 'month' ? 'минулий місяць' : type === 'quarter' ? 'минулий квартал' : 'минулий рік'}`,
+    hoursShort: 'год',
   },
   theme: {
     light: 'Світла',
@@ -759,6 +764,9 @@ const cs: Dictionary = {
     exactDate: 'Přesné datum',
     monthOnly: 'Jen měsíc',
     present: 'dosud',
+    vsPreviousPeriod: (type) =>
+      `vs ${type === 'month' ? 'minulý měsíc' : type === 'quarter' ? 'minulé čtvrtletí' : 'minulý rok'}`,
+    hoursShort: 'h',
   },
   theme: {
     light: 'Světlý',

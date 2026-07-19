@@ -41,6 +41,30 @@ export function periodRange(type: PeriodType, year: number, monthOrQuarter: numb
   return yearRange(year)
 }
 
+/** Rok + jednotka (měsíc 1–12 / kvartál 1–4 / rok = vždy 1) — jedna hodnota reprezentující zvolené období pro PeriodSwitcher. */
+export interface PeriodValue {
+  type: PeriodType
+  year: number
+  value: number
+}
+
+/** Posune období o jeden krok vpřed/zpět ve stejné jednotce (měsíc → měsíc, kvartál → kvartál, rok → rok), s přechodem přes hranici roku. */
+export function stepPeriod(period: PeriodValue, direction: 1 | -1): PeriodValue {
+  if (period.type === 'year') return { ...period, year: period.year + direction }
+
+  const max = period.type === 'quarter' ? 4 : 12
+  let next = period.value + direction
+  let year = period.year
+  if (next < 1) {
+    next = max
+    year -= 1
+  } else if (next > max) {
+    next = 1
+    year += 1
+  }
+  return { type: period.type, year, value: next }
+}
+
 /** Inkluzivní porovnání ISO dat (yyyy-mm-dd), řetězcové řazení funguje díky pevné šířce. */
 export function inRange(date: string, start: string, end: string): boolean {
   return date >= start && date <= end

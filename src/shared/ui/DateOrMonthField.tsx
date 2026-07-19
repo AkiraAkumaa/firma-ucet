@@ -23,7 +23,7 @@ export function DateOrMonthField({ label, value, onChange, className = '' }: Dat
             type="button"
             onClick={() => setMode('day')}
             className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-              mode === 'day' ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+              mode === 'day' ? 'bg-brand-700 text-white dark:bg-brand-600' : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
             }`}
           >
             {t.common.exactDate}
@@ -32,7 +32,7 @@ export function DateOrMonthField({ label, value, onChange, className = '' }: Dat
             type="button"
             onClick={() => setMode('month')}
             className={`rounded px-1.5 py-0.5 text-xs font-medium ${
-              mode === 'month' ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900' : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+              mode === 'month' ? 'bg-brand-700 text-white dark:bg-brand-600' : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
             }`}
           >
             {t.common.monthOnly}

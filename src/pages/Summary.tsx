@@ -95,7 +95,7 @@ export function Summary() {
             onClick={() => setPeriod(item.key)}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium ${
               period === item.key
-                ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
+                ? 'bg-brand-700 text-white dark:bg-brand-600'
                 : 'border border-gray-300 text-gray-600 dark:border-gray-700 dark:text-gray-300'
             }`}
           >

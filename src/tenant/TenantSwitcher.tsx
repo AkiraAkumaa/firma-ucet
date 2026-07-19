@@ -37,7 +37,7 @@ export function TenantSwitcher() {
         <button
           type="button"
           onClick={createTenant}
-          className="rounded-lg bg-gray-900 px-2 py-1 text-sm font-medium text-white dark:bg-gray-100 dark:text-gray-900"
+          className="rounded-lg bg-brand-700 px-2 py-1 text-sm font-medium text-white dark:bg-brand-500"
         >
           {t.common.add}
         </button>

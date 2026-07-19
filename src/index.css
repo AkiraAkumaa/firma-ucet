@@ -2,6 +2,24 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * Фірмовий акцент — "кресленик" (blueprint): глибокий технічний синій замість
+ * нейтрального чорного. Замінює bg-gray-900 на первинних діях (кнопки, активна
+ * навігація), щоб застосунок мав власний характер, а не типовий сіро-чорний SaaS.
+ */
+@theme {
+  --color-brand-50: #eaf3fa;
+  --color-brand-100: #cfe4f2;
+  --color-brand-200: #a3cbe3;
+  --color-brand-300: #7fb8dc;
+  --color-brand-400: #4a97c7;
+  --color-brand-500: #2e7dae;
+  --color-brand-600: #1d5c86;
+  --color-brand-700: #163f5c;
+  --color-brand-800: #11304a;
+  --color-brand-900: #0e1b2a;
+}
+
 :root {
   color-scheme: light dark;
 }

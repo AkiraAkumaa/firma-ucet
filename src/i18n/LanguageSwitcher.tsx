@@ -17,7 +17,7 @@ export function LanguageSwitcher() {
           onClick={() => setLanguage(option.value)}
           className={`rounded-md px-2.5 py-1 text-sm font-medium transition-colors ${
             language === option.value
-              ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
+              ? 'bg-brand-700 text-white dark:bg-brand-600'
               : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100'
           }`}
         >
