@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useT } from '../i18n/I18nContext'
 import {
@@ -16,6 +16,7 @@ import { outputEntryAmount } from '../domain/output/calc'
 import { useSiteMonthlyBreakdown, useSitePlan, useSiteProfitability } from '../domain/profitability/useProfitability'
 import { calculateJobTimeline } from '../domain/analytics/timeline'
 import { inRange, periodRange, stepPeriod, type PeriodValue } from '../domain/reports/period'
+import { monthOf } from '../domain/debt/dateUtils'
 import { formatMoney } from '../shared/money'
 import { todayIso } from '../shared/date'
 import { Card } from '../shared/ui/Card'
@@ -23,7 +24,7 @@ import { Button } from '../shared/ui/Button'
 import { StatTile, type StatDelta } from '../shared/ui/StatTile'
 import { PeriodSwitcher } from '../shared/ui/PeriodSwitcher'
 import { ROUTES } from '../app/routes'
-import { exportSiteToExcel } from '../export/exportExcel'
+import { exportSiteToExcel, exportSiteMonthToExcel } from '../export/exportExcel'
 
 function currentMonthValue(): PeriodValue {
   const now = new Date()
@@ -127,6 +128,46 @@ export function SiteDetail() {
     }
     return { current: statsFor(range), previous: statsFor(previousRange) }
   }, [hoursEntries, outputEntries, siteId, people, range, previousRange])
+
+  const [expandedMonth, setExpandedMonth] = useState<string | null>(null)
+
+  const monthlyPersonDetail = useMemo(() => {
+    const raw = new Map<string, { personId: number; hours: number; cost: number }[]>()
+    function addEntry(month: string, personId: number, hours: number, cost: number) {
+      const list = raw.get(month) ?? []
+      let row = list.find((r) => r.personId === personId)
+      if (!row) {
+        row = { personId, hours: 0, cost: 0 }
+        list.push(row)
+      }
+      row.hours += hours
+      row.cost += cost
+      raw.set(month, list)
+    }
+    for (const e of hoursEntries) {
+      if (e.siteId !== siteId) continue
+      addEntry(monthOf(e.date), e.personId, e.hours, hoursEntryAmount(e))
+    }
+    for (const e of outputEntries) {
+      if (e.siteId !== siteId) continue
+      addEntry(monthOf(e.date), e.personId, 0, outputEntryAmount(e))
+    }
+
+    const result = new Map<string, { personId: number; name: string; brigadeName: string; hours: number; cost: number }[]>()
+    for (const [month, rows] of raw) {
+      result.set(
+        month,
+        rows
+          .map((row) => {
+            const person = people.find((p) => p.id === row.personId)
+            const brigade = brigades.find((b) => b.id === person?.brigadeId)
+            return { personId: row.personId, name: person?.name ?? '', brigadeName: brigade?.name ?? '', hours: row.hours, cost: row.cost }
+          })
+          .sort((a, b) => b.cost - a.cost),
+      )
+    }
+    return result
+  }, [hoursEntries, outputEntries, siteId, people, brigades])
 
   if (!site) {
     return <p className="text-sm text-gray-500">{t.common.noData}</p>
@@ -316,6 +357,7 @@ export function SiteDetail() {
       {monthly.length > 0 && (
         <div className="mt-4">
           <h2 className="text-lg font-semibold">{t.sites.monthlyBreakdown}</h2>
+          <p className="mt-1 text-xs text-gray-500">{t.sites.monthDetailHint}</p>
           <Card className="mt-2 overflow-x-auto p-0">
             <table className="w-full min-w-[520px] text-sm">
               <thead>
@@ -329,22 +371,92 @@ export function SiteDetail() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                {monthly.map((row) => (
-                  <tr key={row.month}>
-                    <td className="px-4 py-2">{row.month}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{formatMoney(row.revenue)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{formatMoney(row.laborCost)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{formatMoney(row.materialCost)}</td>
-                    <td className="px-4 py-2 text-right tabular-nums">{formatMoney(row.otherExpenses)}</td>
-                    <td
-                      className={`px-4 py-2 text-right font-medium tabular-nums ${
-                        row.netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
-                      }`}
-                    >
-                      {formatMoney(row.netProfit)}
-                    </td>
-                  </tr>
-                ))}
+                {monthly.map((row) => {
+                  const isExpanded = expandedMonth === row.month
+                  const detail = monthlyPersonDetail.get(row.month) ?? []
+                  return (
+                    <Fragment key={row.month}>
+                      <tr
+                        onClick={() => setExpandedMonth(isExpanded ? null : row.month)}
+                        className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                      >
+                        <td className="px-4 py-2">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span
+                              className={`inline-block text-gray-400 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                            >
+                              ›
+                            </span>
+                            {row.month}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2 text-right tabular-nums">{formatMoney(row.revenue)}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{formatMoney(row.laborCost)}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{formatMoney(row.materialCost)}</td>
+                        <td className="px-4 py-2 text-right tabular-nums">{formatMoney(row.otherExpenses)}</td>
+                        <td
+                          className={`px-4 py-2 text-right font-medium tabular-nums ${
+                            row.netProfit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                          }`}
+                        >
+                          {formatMoney(row.netProfit)}
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan={6} className="bg-gray-50 px-4 py-3 dark:bg-gray-800/40">
+                            <div className="flex items-center justify-between gap-2">
+                              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                                {t.sites.monthDetailTitle}
+                              </h3>
+                              <Button
+                                variant="secondary"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  exportSiteMonthToExcel(siteId, row.month, t)
+                                }}
+                              >
+                                {t.backup.exportExcel}
+                              </Button>
+                            </div>
+                            {detail.length === 0 ? (
+                              <p className="mt-2 text-sm text-gray-500">{t.sites.monthDetailEmpty}</p>
+                            ) : (
+                              <table className="mt-2 w-full text-sm">
+                                <thead>
+                                  <tr className="text-left text-gray-500">
+                                    <th className="py-1 font-medium">{t.sites.monthDetailPerson}</th>
+                                    <th className="py-1 font-medium">{t.sites.monthDetailBrigade}</th>
+                                    <th className="py-1 text-right font-medium">{t.entry.hours}</th>
+                                    <th className="py-1 text-right font-medium">{t.sites.laborCost}</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                  {detail.map((d) => (
+                                    <tr key={d.personId}>
+                                      <td className="py-1.5">
+                                        <Link
+                                          to={ROUTES.personDetail(d.personId)}
+                                          className="hover:underline"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          {d.name}
+                                        </Link>
+                                      </td>
+                                      <td className="py-1.5 text-gray-500">{d.brigadeName}</td>
+                                      <td className="py-1.5 text-right tabular-nums">{d.hours > 0 ? d.hours : '—'}</td>
+                                      <td className="py-1.5 text-right tabular-nums">{formatMoney(d.cost)}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  )
+                })}
               </tbody>
             </table>
           </Card>

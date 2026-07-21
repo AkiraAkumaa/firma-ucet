@@ -168,6 +168,11 @@ export interface Dictionary {
     activePeople: string
     activeBrigades: string
     allTimeLaborCost: string
+    monthDetailTitle: string
+    monthDetailPerson: string
+    monthDetailBrigade: string
+    monthDetailHint: string
+    monthDetailEmpty: string
   }
   workTypes: {
     title: string
@@ -543,6 +548,11 @@ const uk: Dictionary = {
     activePeople: 'Активних людей',
     activeBrigades: 'Активних бригад',
     allTimeLaborCost: 'Вартість праці (весь час)',
+    monthDetailTitle: 'Хто працював цього місяця',
+    monthDetailPerson: 'Людина',
+    monthDetailBrigade: 'Бригада',
+    monthDetailHint: 'Натисніть на місяць, щоб побачити, хто і скільки годин відпрацював',
+    monthDetailEmpty: 'Немає записів за цей місяць',
   },
   workTypes: {
     title: 'Види робіт',
@@ -923,6 +933,11 @@ const cs: Dictionary = {
     activePeople: 'Aktivních osob',
     activeBrigades: 'Aktivních part',
     allTimeLaborCost: 'Náklady na práci (celkem)',
+    monthDetailTitle: 'Kdo pracoval tento měsíc',
+    monthDetailPerson: 'Osoba',
+    monthDetailBrigade: 'Parta',
+    monthDetailHint: 'Klikněte na měsíc a uvidíte, kdo a kolik hodin odpracoval',
+    monthDetailEmpty: 'Za tento měsíc nejsou žádné záznamy',
   },
   workTypes: {
     title: 'Druhy práce',

@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx'
 import type { EntityTable } from 'dexie'
 import { db } from '../db/db'
 import { calculatePersonDebt } from '../domain/debt/calculateDebt'
+import { monthOf } from '../domain/debt/dateUtils'
 import { hoursEntryAmount } from '../domain/hours/calc'
 import { outputEntryAmount } from '../domain/output/calc'
 import { calculateSiteProfitability, expensesForSite } from '../domain/profitability/calculateSiteProfitability'
@@ -422,6 +423,59 @@ export async function exportSiteToExcel(siteId: number, t: Dictionary): Promise<
   }
 
   XLSX.writeFile(workbook, `${site.name}-${new Date().toISOString().slice(0, 10)}.xlsx`)
+}
+
+/** Export toho, kdo a kolik na stavbě odpracoval v jednom konkrétním měsíci (drill-down z tabulky "Statistika po měsících"). */
+export async function exportSiteMonthToExcel(siteId: number, month: string, t: Dictionary): Promise<void> {
+  const tenantId = getActiveTenantId()
+  if (tenantId == null) return
+
+  const byTenant = <T extends { id?: number }>(table: EntityTable<T, 'id'>): Promise<T[]> =>
+    table.where('tenantId').equals(tenantId).toArray()
+
+  const [sites, people, brigades, hoursEntries, outputEntries] = await Promise.all([
+    byTenant(db.sites),
+    byTenant(db.people),
+    byTenant(db.brigades),
+    byTenant(db.hoursEntries),
+    byTenant(db.outputEntries),
+  ])
+
+  const site = sites.find((s) => s.id === siteId)
+  if (!site) return
+
+  const monthHours = hoursEntries.filter((e) => e.siteId === siteId && monthOf(e.date) === month)
+  const monthOutput = outputEntries.filter((e) => e.siteId === siteId && monthOf(e.date) === month)
+
+  const rows = new Map<number, { hours: number; cost: number }>()
+  for (const e of monthHours) {
+    const row = rows.get(e.personId) ?? { hours: 0, cost: 0 }
+    row.hours += e.hours
+    row.cost += hoursEntryAmount(e)
+    rows.set(e.personId, row)
+  }
+  for (const e of monthOutput) {
+    const row = rows.get(e.personId) ?? { hours: 0, cost: 0 }
+    row.cost += outputEntryAmount(e)
+    rows.set(e.personId, row)
+  }
+
+  const detailRows = [...rows.entries()]
+    .map(([personId, row]) => {
+      const person = people.find((p) => p.id === personId)
+      const brigade = brigades.find((b) => b.id === person?.brigadeId)
+      return {
+        [t.sites.monthDetailPerson]: person?.name ?? '',
+        [t.sites.monthDetailBrigade]: brigade?.name ?? '',
+        [t.entry.hours]: row.hours,
+        [t.sites.laborCost]: row.cost,
+      }
+    })
+    .sort((a, b) => b[t.sites.laborCost] - a[t.sites.laborCost])
+
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, sheetFromRows(detailRows), month.slice(0, 31))
+  XLSX.writeFile(workbook, `${site.name}-${month}.xlsx`)
 }
 
 /** Export jen vybraných lidí (hromadná akce v seznamu) — jedna sada souhrnných dluhů. */
